@@ -19,7 +19,24 @@ td.asset,th.asset{text-align:left;font-weight:700}td.sub2{color:var(--mut);font-
 tr.flash{animation:fl 1.2s}@keyframes fl{0%{background:rgba(37,99,235,.18)}100%{background:transparent}}
 tfoot td{font-weight:800;border-top:2px solid var(--line);background:linear-gradient(0deg,var(--line),transparent)}
 .pill{display:inline-block;background:var(--line);border-radius:6px;padding:1px 8px;font-size:12px;color:var(--fg)}
-</style></head><body><div class="wrap">
+.gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+.gatebox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:30px 28px;width:320px;max-width:90vw;box-shadow:0 10px 40px rgba(0,0,0,.15);text-align:center}
+.gtitle{font-size:19px;font-weight:800;margin-bottom:4px}
+.gsub{color:var(--mut);font-size:13px;margin-bottom:18px}
+.gatebox input{width:100%;padding:11px 13px;font-size:15px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--fg);margin-bottom:10px;text-align:center}
+.gatebox input:focus{outline:none;border-color:var(--acc)}
+.gatebox button{width:100%;padding:11px;font-size:15px;font-weight:700;border:none;border-radius:9px;background:var(--acc);color:#fff;cursor:pointer}
+.gatebox button:hover{opacity:.92}
+.gerr{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
+</style></head><body>
+<div class="gate" id="gate"><div class="gatebox">
+<div class="gtitle">🔒 Aptin Internal</div>
+<div class="gsub">Enter password to view</div>
+<input id="gpw" type="password" placeholder="Password" autocomplete="off" autofocus>
+<button id="gbtn">Enter</button>
+<div class="gerr" id="gerr"></div>
+</div></div>
+<div class="wrap" id="app" style="display:none">
 <h1>Aptin Real Market Data <span class="pill">Internal · Live</span></h1>
 <div class="sub">Position-summed <b>calibrated truth</b> + live on-chain <code>OperEvent</code> deltas, read directly from Aptos public nodes. The contract's polluted <code>total_value</code> (what app.aptin.io shows) is <b>not</b> used.</div>
 <div class="status">
@@ -92,5 +109,16 @@ function render(){
  document.getElementById('tbor').textContent=fU(tbor);
  document.getElementById('thold').textContent=fU(thold);
 }
-render();refresh();setInterval(refresh,10000);
+// ---- password gate (soft client-side gate; data is on-chain-public) ----
+var GATE_HASH="57dfde3b9b2a142c1ed3a4e8baf414a9d4f809c6cc218c05cfc304ee91c4346b"; // sha256 of the password
+var started=false;
+function startApp(){if(started)return;started=true;render();refresh();setInterval(refresh,10000);}
+function unlock(){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='';startApp();}
+async function sha256(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('');}
+async function tryPw(){var v=document.getElementById('gpw').value;var h=await sha256(v);
+ if(h===GATE_HASH){try{sessionStorage.setItem('aptin_ok','1')}catch(e){}unlock();}
+ else{document.getElementById('gerr').textContent='Wrong password';document.getElementById('gpw').value='';document.getElementById('gpw').focus();}}
+document.getElementById('gbtn').addEventListener('click',tryPw);
+document.getElementById('gpw').addEventListener('keydown',function(e){if(e.key==='Enter')tryPw();});
+try{if(sessionStorage.getItem('aptin_ok')==='1')unlock();else document.getElementById('gpw').focus();}catch(e){document.getElementById('gpw').focus();}
 </script></body></html>
