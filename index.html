@@ -1,0 +1,96 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Aptin Real Market Data · Live</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--fg:#1a1c20;--mut:#6b7280;--line:#e5e7eb;--acc:#2563eb;--sup:#0f766e;--bor:#b45309;--ok:#16a34a;--red:#dc2626}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#161b22;--fg:#e6edf3;--mut:#9198a1;--line:#2a2f37;--acc:#4d9fff;--sup:#3dd6b6;--bor:#e3a008;--ok:#3fb950;--red:#f87171}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:22px}
+.wrap{max-width:1040px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:14px;line-height:1.6}
+.status{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 15px;margin-bottom:14px;font-size:13px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}.status b{font-weight:700}.status .warn{color:var(--red)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:12px 16px;text-align:right;white-space:nowrap;border-top:1px solid var(--line)}
+thead th{border-top:none;background:linear-gradient(0deg,var(--line),transparent);color:var(--mut);font-weight:600;font-size:12px}
+td.asset,th.asset{text-align:left;font-weight:700}td.sub2{color:var(--mut);font-size:12px;font-weight:400}
+.big{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}.sup{color:var(--sup)}.bor{color:var(--bor)}.hold{color:var(--acc)}
+tr.flash{animation:fl 1.2s}@keyframes fl{0%{background:rgba(37,99,235,.18)}100%{background:transparent}}
+tfoot td{font-weight:800;border-top:2px solid var(--line);background:linear-gradient(0deg,var(--line),transparent)}
+.pill{display:inline-block;background:var(--line);border-radius:6px;padding:1px 8px;font-size:12px;color:var(--fg)}
+</style></head><body><div class="wrap">
+<h1>Aptin Real Market Data <span class="pill">Internal · Live</span></h1>
+<div class="sub">Position-summed <b>calibrated truth</b> + live on-chain <code>OperEvent</code> deltas, read directly from Aptos public nodes. The contract's polluted <code>total_value</code> (what app.aptin.io shows) is <b>not</b> used.</div>
+<div class="status">
+ <span><span class="dot"></span><b id="live">Connecting…</b></span>
+ <span>Calibrated snapshot <code>ledger_version=<span id="pin"></span></code></span>
+ <span>Chain latest <code id="lnow">—</code></span>
+ <span>Events since snapshot <b id="ops">—</b></span>
+ <span id="lastop"></span>
+ <span id="upd" style="margin-left:auto;color:var(--mut)"></span>
+</div>
+<div id="warn" class="status" style="display:none;border-color:var(--red)"></div>
+<table>
+<thead><tr><th class="asset">Asset</th><th>Total supplied</th><th>Total borrowed</th><th>Vault balance</th></tr></thead>
+<tbody id="tb"></tbody>
+<tfoot><tr><td class="asset">Total (USD)</td><td class="big sup" id="tsup"></td><td class="big bor" id="tbor"></td><td class="big hold" id="thold"></td></tr></tfoot>
+</table></div>
+<script>
+var C={"FN":"https://fullnode.mainnet.aptoslabs.com/v1","GQL":"https://api.mainnet.aptoslabs.com/v1/graphql","LEND":"0x3c1d4a86594d681ff7e5d5a233965daeabdc6a15fe5672ceeda5260038857183","POOL":"0x719b1538162dae27f6d818b384dcf82f198b5c5a90b605d3c9aec1189013a73c","CN":4,"PIN":6356358821,"BASE_COUNTER":4227996,"SYM":{"APT":["0x1::aptos_coin::AptosCoin",8],"wWETH":["0xcc8a89c8dce9693d354449f1f73e60e14e347417854f029db5bc8e7454008abb::coin::T",8],"wUSDC":["0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T",6],"wUSDT":["0xa2eda21a58856fda86451436513b867c97eecb4ba099da5775520e0f7492e852::coin::T",6],"zWETH":["0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WETH",6],"zUSDC":["0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC",6],"zUSDT":["0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT",6],"tAPT":["0x84d7aeef42d38a5ffc3ccef853e1b82e4958659d16a7de736a29c55fbbeb0114::staked_aptos_coin::StakedAptosCoin",8],"stAPT":["0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt",8],"Cake":["0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT",8],"USDt":["0x6684d15d691e3e5edbf3474eba252e0dd29b7dfbefa6cc7c2e00811fd454c75a::tether::USDt",6],"USDc":["0xeeb16cc296e7fa9562a13b4b9855856fde84a8c35f77dc2e030b5d2aab8470d6::circle::USDc",6]},"HOLD":{"0x1::aptos_coin::AptosCoin":"APT","0xcc8a89c8dce9693d354449f1f73e60e14e347417854f029db5bc8e7454008abb::coin::T":"wWETH","0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T":"wUSDC","0xa2eda21a58856fda86451436513b867c97eecb4ba099da5775520e0f7492e852::coin::T":"wUSDT","0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WETH":"zWETH","0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC":"zUSDC","0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT":"zUSDT","0x84d7aeef42d38a5ffc3ccef853e1b82e4958659d16a7de736a29c55fbbeb0114::staked_aptos_coin::StakedAptosCoin":"tAPT","0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt":"stAPT","0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT":"Cake","0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b":"USDt","0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b":"USDc"},"PRICE":{"APT":0.591452,"tAPT":0.723792,"stAPT":0.717431,"Cake":1.39,"wWETH":1860.67,"zWETH":1860.67,"wUSDC":1,"zUSDC":1,"USDc":1,"wUSDT":1,"zUSDT":1,"USDt":1},"BASE":{"APT":{"supply":450322.6537,"borrow":413239.5312},"wWETH":{"supply":39.0513,"borrow":39.0512},"zWETH":{"supply":496.47,"borrow":511.79},"wUSDC":{"supply":56264.62,"borrow":54142.63},"zUSDC":{"supply":89357.99,"borrow":30604.37},"USDc":{"supply":194183.84,"borrow":120037.8},"wUSDT":{"supply":10908.27,"borrow":3730.36},"zUSDT":{"supply":35141.55,"borrow":41402.49},"USDt":{"supply":69990.81,"borrow":4160.21},"tAPT":{"supply":4526.6017,"borrow":79.826},"stAPT":{"supply":34029.0871,"borrow":3553.1327},"Cake":{"supply":23678.1863,"borrow":23675.9631}},"ORDER":["APT","zUSDC","USDc","zWETH","stAPT","wUSDC","zUSDT","USDt","wUSDT","Cake","wWETH","tAPT"]};
+var coin2sym={}; for(var s in C.SYM) coin2sym[C.SYM[s][0]]=s;
+var SYMNAME={APT:"APTOS",zWETH:"Wrapped Ether (LayerZero)",wWETH:"Wrapped Ether (Wormhole)",zUSDC:"USD Coin (LayerZero)",wUSDC:"USD Coin (Wormhole)",USDc:"USDC (Circle native)",zUSDT:"USD Tether (LayerZero)",wUSDT:"Tether USD (Wormhole)",USDt:"Tether USD (native)",tAPT:"Tortuga Staked APT",stAPT:"Amnis Staked APT",Cake:"PancakeSwap"};
+var DEC={APT:2,zWETH:4,wWETH:4,tAPT:2,stAPT:2,zUSDC:2,wUSDC:2,USDc:2,zUSDT:2,wUSDT:2,USDt:2,Cake:2};
+var coins={},applied=C.BASE_COUNTER,ops=0,lastV=C.PIN,unknown=0,ledgerNow=null,err=null,updatedAt=0;
+for(var k in C.SYM){coins[k]={supply:C.BASE[k]?C.BASE[k].supply:0,borrow:C.BASE[k]?C.BASE[k].borrow:0,holding:0,price:C.PRICE[k]||0};}
+function fT(x,s){return (x||0).toLocaleString(undefined,{maximumFractionDigits:DEC[s]||2})}
+function fU(x){return '$'+(x||0).toLocaleString(undefined,{maximumFractionDigits:0})}
+async function J(u,o){var r=await fetch(u,o);if(!r.ok)throw new Error(r.status);return r.json();}
+function applyEv(d){var sym=coin2sym[d.coin_name];if(!sym||!coins[sym])return;var dec=C.SYM[sym][1],amt=Number(BigInt(d.amount))/Math.pow(10,dec),t=d.oper_type;
+ if(t==='Withdraw')coins[sym].supply=Math.max(0,coins[sym].supply-amt);
+ else if(t==='Repay')coins[sym].borrow=Math.max(0,coins[sym].borrow-amt);
+ else if(t==='Supply')coins[sym].supply+=amt; else if(t==='Borrow')coins[sym].borrow+=amt; else unknown++;}
+async function readHoldings(){var q='query{current_fungible_asset_balances(where:{owner_address:{_eq:"'+C.POOL+'"},amount:{_gt:"0"}},limit:80){asset_type amount}}';
+ var r=await J(C.GQL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+ var seen={},b=r.data.current_fungible_asset_balances;for(var i=0;i<b.length;i++){var sym=C.HOLD[b[i].asset_type];if(sym)seen[sym]=Number(BigInt(b[i].amount))/Math.pow(10,C.SYM[sym][1]);}
+ for(var k in C.SYM)coins[k].holding=seen[k]||0;}
+async function refresh(){
+ try{var led=await J(C.FN+'/');ledgerNow=Number(led.ledger_version);
+  var h=await J(C.FN+'/accounts/'+C.POOL+'/resource/'+encodeURIComponent(C.LEND+'::pool::LendEventHandle'));
+  var now=Number(h.data.oper_events.counter);
+  while(applied<now){var lim=Math.min(100,now-applied);
+   var evs=await J(C.FN+'/accounts/'+C.POOL+'/events/'+C.CN+'?start='+applied+'&limit='+lim);
+   if(!evs.length)break;for(var i=0;i<evs.length;i++){applyEv(evs[i].data);lastV=Number(evs[i].version);ops++;}applied+=evs.length;}
+  err=null;}catch(e){err=String(e.message||e).slice(0,140);}
+ try{await readHoldings();}catch(e){}
+ updatedAt=Date.now();render();
+}
+var prev={};
+function render(){
+ document.getElementById('pin').textContent=C.PIN;
+ document.getElementById('lnow').textContent=ledgerNow?ledgerNow.toLocaleString():'—';
+ document.getElementById('ops').textContent=ops.toLocaleString();
+ document.getElementById('live').textContent=err?'Chain read error':'Live syncing';
+ document.getElementById('live').style.color=err?'var(--red)':'';
+ document.getElementById('upd').textContent='Updated '+Math.max(0,Math.round((Date.now()-updatedAt)/1000))+'s ago';
+ document.getElementById('lastop').innerHTML=ops>0?('Latest event <code>v'+lastV.toLocaleString()+'</code>'):'<span style="color:var(--mut)">No new operations since snapshot (protocol idle)</span>';
+ var w=document.getElementById('warn');
+ if(err){w.style.display='';w.innerHTML='<span class="warn">⚠ Chain read error: '+err+' (auto-retrying)</span>';}
+ else if(unknown>0){w.style.display='';w.innerHTML='<span class="warn">⚠ Detected '+unknown+' liquidation/unknown events — recommend full re-calibration.</span>';}
+ else w.style.display='none';
+ var html='',tsup=0,tbor=0,thold=0;
+ for(var i=0;i<C.ORDER.length;i++){var sym=C.ORDER[i],c=coins[sym];if(!c)continue;
+  var su=c.supply*c.price,bu=c.borrow*c.price,hu=c.holding*c.price;tsup+=su;tbor+=bu;thold+=hu;
+  var chg=prev[sym]&&(prev[sym].s!==c.supply||prev[sym].b!==c.borrow||prev[sym].h!==c.holding);
+  html+='<tr class="'+(chg?'flash':'')+'"><td class="asset">'+sym+'<div class="sub2">'+(SYMNAME[sym]||'')+'</div></td>'+
+   '<td><div class="big sup">'+fT(c.supply,sym)+'</div><div class="sub2">'+fU(su)+'</div></td>'+
+   '<td><div class="big bor">'+fT(c.borrow,sym)+'</div><div class="sub2">'+fU(bu)+'</div></td>'+
+   '<td><div class="big hold">'+fT(c.holding,sym)+'</div><div class="sub2">'+fU(hu)+'</div></td></tr>';
+  prev[sym]={s:c.supply,b:c.borrow,h:c.holding};}
+ document.getElementById('tb').innerHTML=html;
+ document.getElementById('tsup').textContent=fU(tsup);
+ document.getElementById('tbor').textContent=fU(tbor);
+ document.getElementById('thold').textContent=fU(thold);
+}
+render();refresh();setInterval(refresh,10000);
+</script></body></html>
