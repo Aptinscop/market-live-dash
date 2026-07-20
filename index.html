@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Aptin Real Market Data · Live</title>
+<title>Internal · Live</title>
 <style>
 :root{--bg:#f7f8fa;--card:#fff;--fg:#1a1c20;--mut:#6b7280;--line:#e5e7eb;--acc:#2563eb;--sup:#0f766e;--bor:#b45309;--ok:#16a34a;--red:#dc2626}
 @media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#161b22;--fg:#e6edf3;--mut:#9198a1;--line:#2a2f37;--acc:#4d9fff;--sup:#3dd6b6;--bor:#e3a008;--ok:#3fb950;--red:#f87171}}
@@ -30,7 +30,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--line);background:linear-grad
 .gerr{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
 </style></head><body>
 <div class="gate" id="gate"><div class="gatebox">
-<div class="gtitle">🔒 Aptin Internal</div>
+<div class="gtitle">🔒 Internal</div>
 <div class="gsub">Enter password to view</div>
 <input id="gpw" type="password" placeholder="Password" autocomplete="off" autofocus>
 <button id="gbtn">Enter</button>
@@ -113,7 +113,7 @@ function render(){
 var GATE_HASH="57dfde3b9b2a142c1ed3a4e8baf414a9d4f809c6cc218c05cfc304ee91c4346b"; // sha256 of the password
 var started=false;
 function startApp(){if(started)return;started=true;render();refresh();setInterval(refresh,10000);}
-function unlock(){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='';startApp();}
+function unlock(){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='';document.title='Aptin Real Market Data · Live';startApp();}
 async function sha256(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('');}
 async function tryPw(){var v=document.getElementById('gpw').value;var h=await sha256(v);
  if(h===GATE_HASH){try{sessionStorage.setItem('aptin_ok','1')}catch(e){}unlock();}
